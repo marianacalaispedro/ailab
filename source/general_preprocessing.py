@@ -130,7 +130,8 @@ class MainPipeline(BaseEstimator):
             text = re.sub(r"(?:\w+:/{2})?(?:www\.)?([a-z\d\-]+)\.(?:[a-z\d\.]{2,})(?:/[a-zA-Z/\d]*)?", r"\1", text)
 
         if self.no_punctuation:
-            text = re.sub(r"[\u0021-\u0026\u0028-\u002C\u002E-\u002F\u003A-\u003F\u005B-\u005F\u2010-\u2028\ufeff`]+", "", text)
+            #text = re.sub(r"[\u0021-\u0026\u0028-\u002C\u002E-\u002F\u003A-\u003F\u005B-\u005F\u2010-\u2028\ufeff`]+", "", text)
+            text = re.sub(r"[\u0021-\u0026\u0028-\u002C\u002E-\u002F\u003A-\u003F\u005B-\u005E\u0060\u2010-\u2028\ufeff`]+", "", text)
             text = re.sub(r"'(?=[A-Z\s])|(?<=[a-z\.\?\!\,\s])'", "", text)
             text = re.sub(r'\s*-\s*', " ", text)
 

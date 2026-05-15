@@ -131,6 +131,75 @@ def bar_chart(data: pd.DataFrame, x: str, y: str, title: str,
     )
     fig.show()
 
+def distribution_bar_chart(data: pd.DataFrame, x: str, y: str, title: str,
+                           x_label: str, y_label: str, annotation_text: str = None,
+                           color_scale: str = None) -> None:
+    """
+    Bar chart for distribution data with optional annotation.
+    
+    Parameters
+    ----------
+    data : pd.DataFrame
+        DataFrame containing the data
+    x : str
+        Column name for x-axis (categories)
+    y : str
+        Column name for y-axis (counts/frequencies)
+    title : str
+        Chart title
+    x_label : str
+        Label for x-axis
+    y_label : str
+        Label for y-axis
+    annotation_text : str, optional
+        Text to display as annotation
+    color_scale : str, optional
+        Color scale for the bars (defaults to MAIN_PALLETE)
+    """
+    if color_scale is None:
+        color_scale = ColorPalette.MAIN_PALLETE
+    
+    fig = px.bar(
+        data,
+        x=x,
+        y=y,
+        title=title,
+        labels={x: x_label, y: y_label},
+        text=y,
+        color=x,
+        color_continuous_scale=color_scale
+    )
+    
+    fig.update_traces(
+        texttemplate='%{text:,}',
+        textposition='outside',
+        marker_line_width=1,
+        marker_line_color='white'
+    )
+    
+    fig.update_layout(
+        width=ChartConfig.DEFAULT_WIDTH,
+        height=ChartConfig.DEFAULT_HEIGHT,
+        xaxis=dict(tickmode='linear', dtick=1),
+        showlegend=False
+    )
+    
+    if annotation_text:
+        fig.add_annotation(
+            x=0.95,
+            y=0.95,
+            xref='paper',
+            yref='paper',
+            text=annotation_text,
+            showarrow=False,
+            font=dict(size=14, color='white'),
+            bgcolor='rgba(0,0,0,0.7)',
+            bordercolor='white',
+            borderwidth=1
+        )
+    
+    fig.show()
+
 def pie_chart(data: pd.DataFrame, names_col: str, values_col: str,
               title: str) -> None:
     """Pie chart using the Viridis palette."""
@@ -197,12 +266,30 @@ def heatmap_chart(data: pd.DataFrame, title: str) -> None:
     fig.show()
 
 def histogram_chart(data: pd.DataFrame, column: str, title: str,
-                    x_label: str, bins: int = 30) -> None:
+                    x_label: str, bins: int = 30, show_mean: bool = False, show_median: bool = False) -> None:
     """Histogram with unified style."""
     fig = px.histogram(
         data, x=column, nbins=bins, title=title,
         color_discrete_sequence=[ColorPalette.MAIN_PALLETE[0]]
     )
+
+    if show_mean:
+        mean_val = data[column].mean()
+        fig.add_vline(
+            x=mean_val, line_dash="dash", line_color="red",
+            annotation_text=f"Mean: {mean_val:.1f}",
+            annotation_position="top"
+        )
+    
+    if show_median:
+        median_val = data[column].median()
+        fig.add_vline(
+            x=median_val, line_dash="dot", line_color=ColorPalette.MAIN_PALLETE[3],
+            annotation_text=f"Median: {median_val:.1f}",
+            annotation_position="bottom"
+        )
+
+        
     _apply_base_layout(fig, title, x_label, "Frequency",
                        ChartConfig.DEFAULT_WIDTH, ChartConfig.DEFAULT_HEIGHT)
     fig.update_traces(marker=dict(line=dict(width=1.2, color=ColorPalette.BORDER_GRAY)))
@@ -306,13 +393,75 @@ def line_plot(data: pd.DataFrame, x: str, y: str, title: str,
                        ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT)
     fig.show()
 
-def box_plot(data: pd.DataFrame, x: str, y: str, title: str,
-             labels: Dict[str, str]) -> None:
-    """Box plot for distribution comparison."""
-    fig = px.box(data, x=x, y=y, title=title, labels=labels,
-                 color_discrete_sequence=ColorPalette.MAIN_PALLETE)
-    _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
-                       ChartConfig.LARGE_WIDTH, ChartConfig.DEFAULT_HEIGHT)
+def horizontal_box_plot(data: pd.DataFrame, metrics: List[str], title: str,
+                        log_scale: bool = False) -> None:
+    """
+    Horizontal box plot comparing multiple metrics.
+    
+    Parameters
+    ----------
+    data : pd.DataFrame
+        DataFrame containing the metrics columns
+    metrics : List[str]
+        List of column names to compare
+    title : str
+        Chart title
+    log_scale : bool
+        Whether to use logarithmic scale on x-axis
+    """
+    # Prepare data
+    plot_data = pd.DataFrame()
+    for metric in metrics:
+        temp_df = pd.DataFrame({
+            'Metric': [metric] * len(data),
+            'Value': data[metric]
+        })
+        plot_data = pd.concat([plot_data, temp_df], ignore_index=True)
+    
+    # Create horizontal box plot
+    fig = px.box(
+        plot_data,
+        x='Value',
+        y='Metric',
+        title=title,
+        labels={'Value': 'Count', 'Metric': ''},
+        color='Metric',
+        color_discrete_sequence=ColorPalette.MAIN_PALLETE,
+        orientation='h'
+    )
+    
+    if log_scale:
+        fig.update_xaxes(type="log")  # Fixed: changed from update_xaxis to update_xaxes
+    
+    fig.update_layout(
+        width=ChartConfig.LARGE_WIDTH,
+        height=ChartConfig.DEFAULT_HEIGHT,
+        title=dict(
+            text=title, x=0.5, xanchor="center",
+            font=dict(size=ChartConfig.TITLE_SIZE,
+                      family=ChartConfig.FONT_FAMILY,
+                      color=ColorPalette.DARK_TEXT)
+        ),
+        xaxis=dict(
+            title=dict(text='Count', font=dict(size=ChartConfig.AXIS_TITLE_SIZE,
+                                               color=ColorPalette.MEDIUM_TEXT)),
+            tickfont=dict(size=ChartConfig.TICK_SIZE,
+                          color=ColorPalette.LIGHT_TEXT),
+            gridcolor=ColorPalette.LIGHT_GRAY,
+            linecolor=ColorPalette.BORDER_GRAY
+        ),
+        yaxis=dict(
+            title=dict(text='', font=dict(size=ChartConfig.AXIS_TITLE_SIZE,
+                                          color=ColorPalette.MEDIUM_TEXT)),
+            tickfont=dict(size=ChartConfig.TICK_SIZE,
+                          color=ColorPalette.DARK_TEXT),
+            gridcolor=ColorPalette.LIGHT_GRAY,
+            linecolor=ColorPalette.BORDER_GRAY
+        ),
+        plot_bgcolor=ColorPalette.WHITE,
+        paper_bgcolor=ColorPalette.WHITE,
+        showlegend=False
+    )
     fig.show()
 
 # =============================================================================
