@@ -413,127 +413,67 @@ def horizontal_box_plot(data: pd.DataFrame, metrics: List[str], title: str,
 # =============================================================================
 # Word Clouds
 # =============================================================================
-
-def word_cloud_generator(folder_path, df, wc, restaurant_name, vectorisation="bow"):
-
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
-    restaurant_df = df[df["title"] == restaurant_name]
-
-    combined_text = " ".join(restaurant_df["text"])
-
-    # Choose vectorizer
-    if vectorisation == "bow":
-        vectorizer = CountVectorizer(stop_words='english')
-    else:
-        vectorizer = TfidfVectorizer(stop_words='english')
-
-    X = vectorizer.fit_transform([combined_text])
-    words = vectorizer.get_feature_names_out()
-    vector = X.toarray().flatten()
-
-    # Create frequency dictionary
-    freq_dict = dict(zip(words, vector))
-
-    # Generate and save word cloud
-    wc.generate_from_frequencies(freq_dict)
-
-    filename = f"WC_{restaurant_name.replace(' ', '_')}_{vectorisation.upper()}.png"
-    save_path = os.path.join(folder_path, filename)
-    wc.to_file(save_path)
-
-def wordcloud_from_vectorized(
-    folder_path: str,
-    filename: str,
-    vectorized_df: Union[pd.DataFrame, np.ndarray],
-    top_n: int = 20,
-) -> Dict[str, Any]:
+def wordcloud_from_text(text_series: pd.Series, title: str = None, 
+                        max_words: int = 100, colormap: str = 'viridis',
+                        save_path: str = None) -> WordCloud:
     """
-    Generate and save a word cloud from a vectorized token-frequency matrix.
-    """
-
-    # Convert ndarray to DataFrame if needed
-    if isinstance(vectorized_df, np.ndarray):
-        vectorized_df = pd.DataFrame(vectorized_df, columns=[f"token_{i}" for i in range(vectorized_df.shape[1])])
-
-    # Aggregate token counts/weights across rows
-    scores = vectorized_df.mean(axis=0)
-
-    # Take top N tokens
-    top_scores = scores.sort_values(ascending=False).head(top_n)
-    freq_dict = {str(tok): float(val) for tok, val in top_scores.items() if float(val) > 0}
-
-    if not freq_dict:
-        raise ValueError("No positive token frequencies found to build a word cloud.")
-
-    # Generate WordCloud
-    wc = WordCloud(width=800, height=400, background_color="white", colormap="viridis")
-    wc.generate_from_frequencies(freq_dict)
-
-    # Ensure folder exists and save
-    os.makedirs(folder_path, exist_ok=True)
-    save_path = os.path.join(folder_path, filename)
-    wc.to_file(save_path)
-
-    display = True
-    if display:
-        plt.figure(figsize=(12, 6))
-        plt.imshow(wc, interpolation='bilinear')
-        plt.axis('off')
-
-    return {"path": save_path, "wordcloud": wc}
-
-def wordcloud_from_tokens(
-    token_series: pd.Series,
-    max_words: int = 100,
-    title: Optional[str] = None,
-) -> WordCloud:
-    """
-    Generate and display a word cloud directly from a Series of token lists (BoW).
-
-    This matches the Week 4 'BoW wordcloud' style:
-    - Counts raw token frequencies across all documents
-    - Does NOT depend on TF-IDF or any vectorizer
-
+    Generate and display a word cloud directly from a Series of text strings.
+    
     Parameters
     ----------
-    token_series : pd.Series
-        Each element should be a list (or tuple) of tokens.
-    max_words : int, default=100
-        Maximum number of words to show in the cloud.
+    text_series : pd.Series
+        Series containing text strings (e.g., dataset['01_minimal_preprocessing'])
     title : str, optional
-        Optional title to show above the figure.
-
+        Title for the plot
+    max_words : int, default=100
+        Maximum number of words to show
+    colormap : str, default='viridis'
+        Color scheme for the word cloud
+    save_path : str, optional
+        Path to save the image
+        
     Returns
     -------
     WordCloud
-        The generated WordCloud object.
+        The generated WordCloud object
     """
-    # Count tokens
-    counter = Counter()
-    for tokens in token_series:
-        if isinstance(tokens, (list, tuple)):
-            counter.update(tokens)
-
-    # Take the most common tokens
-    freq_dict = dict(counter.most_common(max_words))
-    if not freq_dict:
-        raise ValueError("No tokens found to build a word cloud.")
-
+    # Combine all text
+    combined_text = " ".join(text_series.astype(str))
+    
+    # Count word frequencies
+    words = combined_text.split()
+    word_freq = Counter(words)
+    
+    # Take top words
+    top_words = dict(word_freq.most_common(max_words))
+    
+    if not top_words:
+        raise ValueError("No words found to build a word cloud.")
+    
+    # Generate word cloud
     wc = WordCloud(
         width=1200,
         height=600,
-        background_color="white"
-    ).generate_from_frequencies(freq_dict)
-
+        background_color="white",
+        colormap=colormap,
+        max_words=max_words
+    ).generate_from_frequencies(top_words)
+    
+    # Display
     plt.figure(figsize=(12, 6))
     plt.imshow(wc, interpolation="bilinear")
     plt.axis("off")
     if title:
-        plt.title(title)
+        plt.title(title, fontsize=16, pad=20)
+    plt.tight_layout()
+    
+    # Save if path provided
+    if save_path:
+        os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Word cloud saved to {save_path}")
+    
     plt.show()
-
     return wc
 
 # =============================================================================
