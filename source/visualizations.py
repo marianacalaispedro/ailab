@@ -44,7 +44,6 @@ class ColorPalette:
     BORDER_GRAY = "#DDD"
 
     MAIN_PALLETE = ["#440154", "#3b528b", "#21908d", "#5dc962", "#fde725"]
-    RATINGS_PALLETE = ["#d73027", "#fc8d59", "#fee08b", "#d9ef8b", "#1a9850"]
 
 class ChartConfig:
     """Default layout configuration for all charts."""
@@ -136,26 +135,8 @@ def distribution_bar_chart(data: pd.DataFrame, x: str, y: str, title: str,
                            color_scale: str = None) -> None:
     """
     Bar chart for distribution data with optional annotation.
-    
-    Parameters
-    ----------
-    data : pd.DataFrame
-        DataFrame containing the data
-    x : str
-        Column name for x-axis (categories)
-    y : str
-        Column name for y-axis (counts/frequencies)
-    title : str
-        Chart title
-    x_label : str
-        Label for x-axis
-    y_label : str
-        Label for y-axis
-    annotation_text : str, optional
-        Text to display as annotation
-    color_scale : str, optional
-        Color scale for the bars (defaults to MAIN_PALLETE)
     """
+   
     if color_scale is None:
         color_scale = ColorPalette.MAIN_PALLETE
     
@@ -200,49 +181,45 @@ def distribution_bar_chart(data: pd.DataFrame, x: str, y: str, title: str,
     
     fig.show()
 
-def pie_chart(data: pd.DataFrame, names_col: str, values_col: str,
-              title: str) -> None:
-    """Pie chart using the Viridis palette."""
-    fig = go.Figure(
-        go.Pie(
-            labels=data[names_col], values=data[values_col],
-            textinfo="label+percent", hoverinfo="label+value+percent",
-            marker=dict(colors=ColorPalette.MAIN_PALLETE,
-                        line=dict(color=ColorPalette.WHITE, width=2))
-        )
-    )
-    fig.update_layout(
-        title=dict(text=title, x=0.5),
-        width=ChartConfig.DEFAULT_WIDTH,
-        height=ChartConfig.DEFAULT_HEIGHT,
-        plot_bgcolor=ColorPalette.WHITE,
-        paper_bgcolor=ColorPalette.WHITE,
-    )
-    fig.show()
 
 def donut_chart(data: pd.DataFrame, names_col: str, values_col: str,
-                title: str) -> None:
-    """Donut chart using the Viridis palette."""
-
-    fig = go.Figure(
-        go.Pie(
-            labels=data[names_col], values=data[values_col],
-            textinfo="label+percent", hoverinfo="label+value+percent",
-            marker=dict(colors=ColorPalette.RATINGS_PALLETE,
-                        line=dict(color=ColorPalette.WHITE, width=2)),
-            hole=0.4,
-            sort=False,
-            direction="counterclockwise" 
-        )
-    )
+                            title: str, center_text: str = None,
+                            colors: List[str] = None) -> None:
+    """
+    Donut chart with center text annotation.
+    """
+   
+    if colors is None:
+        colors = ['#21908d', '#440154']
+    
+    fig = go.Figure(data=[go.Pie(
+        labels=data[names_col],
+        values=data[values_col],
+        hole=0.4,
+        marker_colors=colors,
+        textinfo='label+percent',
+        textposition='auto',
+        pull=[0, 0.05]  # Slightly pull the second slice
+    )])
+    
+    annotations_list = []
+    if center_text:
+        annotations_list.append(dict(
+            text=center_text,
+            x=0.5, y=0.5,
+            font_size=14,
+            showarrow=False
+        ))
+    
     fig.update_layout(
-        title=dict(text=title, x=0.5),
-        width=ChartConfig.DEFAULT_WIDTH,
-        height=ChartConfig.DEFAULT_HEIGHT,
-        plot_bgcolor=ColorPalette.WHITE,
-        paper_bgcolor=ColorPalette.WHITE,
+        title=title,
+        width=700,
+        height=500,
+        annotations=annotations_list
     )
+    
     fig.show()
+
 
 def heatmap_chart(data: pd.DataFrame, title: str) -> None:
     """Heatmap with annotations and custom project color palette."""
@@ -299,6 +276,7 @@ def histogram_chart(data: pd.DataFrame, column: str, title: str,
 # COMPARATIVE CHARTS
 # =============================================================================
 
+#NOT BEIGN USED
 def clustered_bar_chart(data: pd.DataFrame, x: str, y_columns: List[str],
                         title: str, labels: Dict[str, str]) -> None:
     """Grouped bar chart comparing multiple numeric series."""
@@ -372,42 +350,10 @@ def clustered_bar_charts(data: pd.DataFrame, x: str, y_columns: List[str],
 # =============================================================================
 # ADVANCED CHARTS
 # =============================================================================
-
-def scatter_plot(data: pd.DataFrame, x: str, y: str, title: str,
-                 labels: Dict[str, str], size: Optional[str] = None) -> None:
-    """Scatter plot using continuous Viridis scale."""
-    fig = px.scatter(
-        data, x=x, y=y, title=title, labels=labels, size=size,
-        color_continuous_scale=ColorPalette.MAIN_PALLETE
-    )
-    _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
-                       ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT)
-    fig.show()
-
-def line_plot(data: pd.DataFrame, x: str, y: str, title: str,
-              labels: Dict[str, str]) -> None:
-    """Line plot for trend visualization."""
-    fig = px.line(data, x=x, y=y, title=title, labels=labels,
-                 color_discrete_sequence=ColorPalette.MAIN_PALLETE)
-    _apply_base_layout(fig, title, labels.get(x, x), labels.get(y, y),
-                       ChartConfig.LARGE_WIDTH, ChartConfig.LARGE_HEIGHT)
-    fig.show()
-
 def horizontal_box_plot(data: pd.DataFrame, metrics: List[str], title: str,
                         log_scale: bool = False) -> None:
     """
     Horizontal box plot comparing multiple metrics.
-    
-    Parameters
-    ----------
-    data : pd.DataFrame
-        DataFrame containing the metrics columns
-    metrics : List[str]
-        List of column names to compare
-    title : str
-        Chart title
-    log_scale : bool
-        Whether to use logarithmic scale on x-axis
     """
     # Prepare data
     plot_data = pd.DataFrame()
@@ -505,22 +451,6 @@ def wordcloud_from_vectorized(
 ) -> Dict[str, Any]:
     """
     Generate and save a word cloud from a vectorized token-frequency matrix.
-
-    Parameters
-    ----------
-    folder_path : str
-        Directory to save the image (created if missing)
-    filename : str
-        Name of the saved word cloud image
-    vectorized_df : DataFrame or ndarray
-        Columns=tokens if DataFrame, or 2D array (samples x tokens)
-    top_n : int
-        Number of top tokens to include
-
-    Returns
-    -------
-    dict
-        Keys: 'path', 'freq_dict', 'wordcloud'
     """
 
     # Convert ndarray to DataFrame if needed
@@ -596,195 +526,6 @@ def wordcloud_from_tokens(
         height=600,
         background_color="white"
     ).generate_from_frequencies(freq_dict)
-
-    plt.figure(figsize=(12, 6))
-    plt.imshow(wc, interpolation="bilinear")
-    plt.axis("off")
-    if title:
-        plt.title(title)
-    plt.show()
-
-    return wc
-
-def wordcloud_by_rating(
-    token_series: pd.Series,
-    ratings_series: pd.Series,
-    max_words: int = 100,
-    title: Optional[str] = None,
-) -> WordCloud:
-    """
-    Wordcloud where:
-    - SIZE  = how often a word appears (BoW frequency)
-    - COLOR = average star rating of reviews where the word appears,
-              mapped to ColorPalette.RATINGS_PALLETE.
-
-    Parameters
-    ----------
-    token_series : pd.Series
-        Each element is a list/tuple of tokens for one review
-        (e.g. dataset["03_normalized_text"]).
-    ratings_series : pd.Series
-        Numeric ratings aligned with token_series (same length/index).
-    max_words : int
-        Maximum number of words to draw.
-    title : str, optional
-        Title for the matplotlib figure.
-    """
-    # 1) Count frequencies and accumulate ratings per token
-    freq_counter = Counter()
-    rating_sum = defaultdict(float)
-    rating_count = defaultdict(int)
-
-    for tokens, rating in zip(token_series, ratings_series):
-        if not isinstance(tokens, (list, tuple)):
-            continue
-        try:
-            rating_val = float(rating)
-        except (TypeError, ValueError):
-            continue
-
-        for tok in tokens:
-            freq_counter[tok] += 1
-            rating_sum[tok] += rating_val
-            rating_count[tok] += 1
-
-    # 2) Top words by frequency
-    most_common = freq_counter.most_common(max_words)
-    freq_dict = {tok: freq for tok, freq in most_common}
-
-    if not freq_dict:
-        raise ValueError("No tokens found to build rating-based word cloud.")
-
-    # 3) Average rating per token
-    avg_rating = {}
-    for tok, _ in most_common:
-        if rating_count[tok] > 0:
-            avg_rating[tok] = rating_sum[tok] / rating_count[tok]
-        else:
-            avg_rating[tok] = np.nan
-
-    global_mean = np.nanmean(list(avg_rating.values())) if avg_rating else 3.0
-
-    # 4) Base wordcloud using frequencies (size)
-    wc = WordCloud(
-        width=1200,
-        height=600,
-        background_color="white"
-    ).generate_from_frequencies(freq_dict)
-
-    # 5) Colour mapping using YOUR RATINGS_PALLETE
-    palette = ColorPalette.RATINGS_PALLETE  # ["#d73027", ..., "#1a9850"]
-
-    def rating_color_func(word, *args, **kwargs):
-        r = avg_rating.get(word, global_mean)   # average rating for this word
-        # normalise rating 1–5 → 0–1
-        r_norm = (r - 1.0) / 4.0
-        r_norm = min(max(r_norm, 0.0), 1.0)
-        # map to palette index 0..4
-        idx = int(round(r_norm * (len(palette) - 1)))
-        idx = max(0, min(idx, len(palette) - 1))
-        return palette[idx]
-
-    # recolor using the rating-based colour function
-    wc = wc.recolor(color_func=rating_color_func)
-
-    # 6) Plot
-    plt.figure(figsize=(12, 6))
-    plt.imshow(wc, interpolation="bilinear")
-    plt.axis("off")
-    if title:
-        plt.title(title)
-    plt.show()
-
-    return wc
-
-def wordcloud_by_pos(
-    token_series: pd.Series,
-    max_words: int = 100,
-    title: Optional[str] = None,
-    pos_series: Optional[pd.Series] = None,
-) -> WordCloud:
-    """
-    Wordcloud where:
-    - SIZE  = frequency (BoW)
-    - COLOR = dominant POS of each word (noun / verb / adjective / other).
-
-    Parameters
-    ----------
-    token_series : pd.Series
-        Each element is a list/tuple of tokens for one review.
-    max_words : int
-        Maximum number of words to include.
-    title : str, optional
-        Title for the plot.
-    pos_series : pd.Series, optional
-        If provided, each element is a list of POS tags aligned with token_series.
-        If None, POS tags are inferred with nltk.pos_tag.
-    """
-    def coarse_pos(tag: str) -> str:
-        """Map Penn Treebank POS tags to coarse categories."""
-        if tag.startswith("N"):
-            return "NOUN"
-        if tag.startswith("V"):
-            return "VERB"
-        if tag.startswith("J"):
-            return "ADJ"
-        return "OTHER"
-
-    freq_counter = Counter()
-    pos_counts = defaultdict(lambda: Counter())
-
-    
-    if pos_series is not None:
-        for tokens, tags in zip(token_series, pos_series):
-            if not isinstance(tokens, (list, tuple)):
-                continue
-            if not isinstance(tags, (list, tuple)):
-                continue
-            for tok, tag in zip(tokens, tags):
-                freq_counter[tok] += 1
-                pos_counts[tok][coarse_pos(str(tag))] += 1
-    else:
-        for tokens in token_series:
-            if not isinstance(tokens, (list, tuple)):
-                continue
-            tagged = nltk.pos_tag(tokens)
-            for tok, tag in tagged:
-                freq_counter[tok] += 1
-                pos_counts[tok][coarse_pos(tag)] += 1
-
-   
-    most_common = freq_counter.most_common(max_words)
-    freq_dict = {tok: freq for tok, freq in most_common}
-
-    if not freq_dict:
-        raise ValueError("No tokens found to build POS-based word cloud.")
-
-    word_pos = {}
-    for tok, _ in most_common:
-        if pos_counts[tok]:
-            word_pos[tok] = pos_counts[tok].most_common(1)[0][0]
-        else:
-            word_pos[tok] = "OTHER"
-
-    pos_colors = {
-        "NOUN": ColorPalette.MAIN_PALLETE[2],   # green-ish
-        "VERB": ColorPalette.MAIN_PALLETE[1],   # blue-ish
-        "ADJ":  ColorPalette.MAIN_PALLETE[0],   # purple
-        "OTHER": "#95a5a6",                     # neutral gray
-    }
-
-    wc = WordCloud(
-        width=1200,
-        height=600,
-        background_color="white"
-    ).generate_from_frequencies(freq_dict)
-
-    def pos_color_func(word, *args, **kwargs):
-        pos = word_pos.get(word, "OTHER")
-        return pos_colors.get(pos, pos_colors["OTHER"])
-
-    wc = wc.recolor(color_func=pos_color_func)
 
     plt.figure(figsize=(12, 6))
     plt.imshow(wc, interpolation="bilinear")
@@ -878,12 +619,12 @@ def most_common_words(df, text_col="text", category_col=None, top_n=20):
     overall_freq = pd.DataFrame({"word": words, "count": word_counts})
     overall_freq = overall_freq.sort_values(by="count", ascending=False).head(top_n)
 
-    print("🔠 Most Common Words Overall:")
+    print(" Most Common Words Overall:")
     print(overall_freq)
 
     # If category_col provided, compute by category
     if category_col:
-        print("\n📊 Most Common Words by Category:")
+        print("\n Most Common Words by Category:")
         category_results = {}
         for cat, group in df.groupby(category_col):
             X_cat = vectorizer.fit_transform(group[text_col])
@@ -892,68 +633,9 @@ def most_common_words(df, text_col="text", category_col=None, top_n=20):
             freq_df = pd.DataFrame({"word": words_cat, "count": word_counts_cat})
             freq_df = freq_df.sort_values(by="count", ascending=False).head(top_n).reset_index(drop=True)
             category_results[cat] = freq_df
-            print(f"\n➡️ {cat}:")
+            print(f"\n {cat}:")
             print(freq_df)
         #return overall_freq, category_results
-
-    #return overall_freq
-    
-# =============================================================================
-# GEO VISUALIZATION
-# =============================================================================
-
-def extract_coordinates(url: str) -> Tuple[Optional[float], Optional[float]]:
-    """Extract (lat, lon) coordinates from a Google Maps URL."""
-    match = re.search(r"@([-+]?\d*\.\d+),([-+]?\d*\.\d+)", str(url))
-    return (float(match.group(1)), float(match.group(2))) if match else (None, None)
-
-def plot_restaurant_map(dataset: pd.DataFrame, color_by: str,
-                        url_col: str = "url", title_col: str = "title",
-                        category_col: str = "categoryName",
-                        reviews_col: str = "reviewsCount",
-                        zoom: int = 10, height: int = 700) -> None:
-    
-    """Map of restaurants colored by a chosen attribute."""
-
-    dataset[["latitude", "longitude"]] = dataset[url_col].apply(
-        lambda u: pd.Series(extract_coordinates(u))
-    )
-    dataset = dataset.dropna(subset=["latitude", "longitude"]).copy()
-
-    color_args = (
-        dict(color_continuous_scale=ColorPalette.RATINGS_PALLETE)
-        if pd.api.types.is_numeric_dtype(dataset[color_by])
-        else dict(color_discrete_sequence=px.colors.qualitative.Safe)
-    )
-
-    fig = px.scatter_mapbox(
-        dataset, lat="latitude", lon="longitude", color=color_by,
-        hover_name=title_col,
-        hover_data={category_col: True, reviews_col: True, color_by: True},
-        zoom=zoom, title=f"Restaurant Locations by {color_by}", **color_args
-    )
-    fig.update_layout(mapbox_style="carto-positron", height=height)
-    fig.show()
-
-#--------------------------------------------------------------------------------
-# TERM FREQUENCY PLOTTING FUNCTION
-#--------------------------------------------------------------------------------
-
-def plot_term_frequency(df, nr_terms, df_name, show=True):
-        
-    # Create the Seaborn bar plot
-    plt.figure(figsize=(10, 8))
-    sns_plot = sns.barplot(x='frequency', y='words', data=df.head(nr_terms))  # Plotting top 20 terms for better visualization
-    plt.title('Top 20 Term Frequencies of {}'.format(df_name))
-    plt.xlabel('Frequency')
-    plt.ylabel('Words')
-    if show==True:
-        plt.show()
-
-    fig = sns_plot.get_figure()
-    plt.close()
-
-    return fig
 
 # =============================================================================
 # CO-OCCURRENCE MATRIX FROM TOKENS
