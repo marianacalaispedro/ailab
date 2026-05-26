@@ -98,7 +98,7 @@ def extract_top_emotions(predictions, threshold=0.5):
         top_emotions = [predictions[0]['label']]
     return ", ".join(top_emotions)
 
-def apply_baseline_to_dataframe(df: pd.DataFrame, text_column: str = 'text', 
+'''def apply_baseline_to_dataframe(df: pd.DataFrame, text_column: str = 'text', 
                                 threshold: float = 0.5, 
                                 output_column: str = 'baseline_predictions') -> pd.DataFrame:
     """
@@ -134,7 +134,113 @@ def apply_baseline_to_dataframe(df: pd.DataFrame, text_column: str = 'text',
         df_result[output_column] = df_result[text_column].apply(predict_row)
         
     print(f"Predictions completed successfully! Saved to column: '{output_column}'")
+    return df_result'''
+
+def apply_baseline_to_dataframe(df: pd.DataFrame, text_column: str = 'text', 
+                                threshold: float = 0.5, 
+                                output_column: str = 'baseline_predictions',
+                                model_name: str = 'SamLowe/roberta-base-go_emotions') -> pd.DataFrame:
+    """
+    Applies a Hugging Face model to a text column.
+    
+    Args:
+        df: Pandas DataFrame containing the texts.
+        text_column: Name of the column containing the text.
+        threshold: Minimum probability (0.0 to 1.0) required for an emotion.
+        output_column: Name of the output column for predictions.
+        model_name: Hugging Face model identifier.
+    """
+    df_result = df.copy()
+    
+    print(f"Loading model: {model_name}...")
+    classifier = pipeline(
+        task="text-classification", 
+        model=model_name, 
+        top_k=None
+    )
+    
+    print(f"Gathering predictions for {len(df)} rows...")
+    
+    def predict_row(text):
+        try:
+            preds = classifier(str(text))[0]
+            top_emotions = [p['label'] for p in preds if p['score'] > threshold]
+            if not top_emotions:
+                top_emotions = [preds[0]['label']]
+            return ", ".join(top_emotions)
+        except Exception as e:
+            return "error"
+
+    try:
+        from tqdm import tqdm
+        tqdm.pandas(desc="Generating predictions")
+        df_result[output_column] = df_result[text_column].progress_apply(predict_row)
+    except ImportError:
+        df_result[output_column] = df_result[text_column].apply(predict_row)
+        
+    print(f"Predictions saved to column: '{output_column}'")
     return df_result
+
+def predict_with_model(df: pd.DataFrame, text_column: str, model_name: str, 
+                       output_column: str, threshold: float = 0.5,
+                       max_length: int = 512) -> pd.DataFrame:
+    """
+    Apply any Hugging Face model to a text column and add predictions as a new column.
+    """
+    from dotenv import load_dotenv
+    import os
+    from transformers import pipeline
+    from huggingface_hub import login
+    
+    # Load token from .env
+    load_dotenv()
+    token = os.getenv('HUGGINGFACE_TOKEN')
+    
+    if token:
+        print("✅ Using authentication token")
+        # Login first
+        login(token=token)
+    else:
+        print("⚠️ No token found")
+    
+    df_result = df.copy()
+    
+    print(f"Loading model: {model_name}...")
+    
+    # Pass token explicitly to pipeline
+    classifier = pipeline(
+        task="text-classification", 
+        model=model_name, 
+        token=token,  # <<< IMPORTANT: Pass token here
+        top_k=None,
+        truncation=True,
+        max_length=max_length
+    )
+    
+    print(f"Generating predictions for {len(df)} rows...")
+    
+    def predict_row(text):
+        try:
+            preds = classifier(str(text), truncation=True, max_length=max_length)[0]
+            top_emotions = [p['label'] for p in preds if p['score'] > threshold]
+            if not top_emotions:
+                top_emotions = [preds[0]['label']]
+            return ", ".join(top_emotions)
+        except Exception as e:
+            print(f"Error: {e}")
+            return "error"
+    
+    try:
+        from tqdm import tqdm
+        tqdm.pandas(desc=f"Predicting with {output_column}")
+        df_result[output_column] = df_result[text_column].progress_apply(predict_row)
+    except ImportError:
+        df_result[output_column] = df_result[text_column].apply(predict_row)
+    
+    print(f" Predictions saved to column: '{output_column}'")
+    return df_result
+    
+
 
 def multilabel_metrics(true_df: pd.DataFrame, pred_series: pd.Series, 
                        emotion_cols: List[str]) -> Dict:
