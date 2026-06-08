@@ -219,7 +219,8 @@ def predict_with_model(df: pd.DataFrame, text_column: str, model_name: str,
     
     print(f"Generating predictions for {len(df)} rows...")
     
-    #def predict_row(text):
+    # Original prediction function with string output
+    # def predict_row(text):
     #    try:
     #        preds = classifier(str(text), truncation=True, max_length=max_length)[0]
     #        top_emotions = [p['label'] for p in preds if p['score'] > threshold]
@@ -230,7 +231,7 @@ def predict_with_model(df: pd.DataFrame, text_column: str, model_name: str,
     #        print(f"Error: {e}")
     #        return "error"
 
-    #Change to binary output
+    # Prediction with binary dictionary output
     def predict_row(text):
         try:
             preds = classifier(str(text), truncation=True, max_length=max_length)[0]
@@ -250,6 +251,11 @@ def predict_with_model(df: pd.DataFrame, text_column: str, model_name: str,
     print(f" Predictions saved to column: '{output_column}'")
     return df_result
     
+# Convert prediction dictionaries(binary) to lists(Strings) of predicted emotions
+def prediction_to_labels(pred):
+    if isinstance(pred, dict):
+        return [emotion for emotion, value in pred.items() if value == 1]
+    return []
 
 
 def multilabel_metrics(true_df: pd.DataFrame, pred_series: pd.Series, 
@@ -271,15 +277,28 @@ def multilabel_metrics(true_df: pd.DataFrame, pred_series: pd.Series,
     dict
         Dictionary containing all metrics
     """
-    # Convert predictions to binary matrix
+    
+    # Creates a binary dataframe for predictions with the same structure as true_df
     pred_binary = pd.DataFrame(0, index=pred_series.index, columns=emotion_cols)
     
-    for idx, pred_str in enumerate(pred_series):
-        if pd.notna(pred_str) and pred_str != "error":
-            predicted_emotions = [e.strip() for e in pred_str.split(',')]
-            for emotion in predicted_emotions:
-                if emotion in emotion_cols:
-                    pred_binary.iloc[idx, pred_binary.columns.get_loc(emotion)] = 1
+    # Iterate through predictions and set emotions
+    for idx, pred_value in enumerate(pred_series):
+        if pd.isna(pred_value) or pred_value == "error":
+            continue
+
+        # Handle case where predictions are dictionaries of binary values
+        if isinstance(pred_value, dict):
+            predicted_emotions = [emotion for emotion, value in pred_value.items() if value == 1]
+        # Handle case where predictions are already lists of emotions
+        elif isinstance(pred_value, list):
+            predicted_emotions = [emotion for emotion in pred_value if emotion in emotion_cols]
+        # Handle case where predictions are strings of comma-separated emotions
+        else:
+            predicted_emotions = [e.strip() for e in str(pred_value).split(',') if e.strip()]
+
+        for emotion in predicted_emotions:
+            if emotion in emotion_cols:
+                pred_binary.iloc[idx, pred_binary.columns.get_loc(emotion)] = 1
     
     # Get true labels as numpy array
     true_binary = true_df[emotion_cols].values
@@ -344,7 +363,7 @@ def create_model_comparison_df(df: pd.DataFrame, emotion_cols: List[str],
             continue
         
         # Remove rows with errors
-        valid_rows = df[pred_col] != "error"
+        valid_rows = df[pred_col].apply(lambda x: x != "error" and x != {} and pd.notna(x))
         valid_df = df[valid_rows]
         
         if len(valid_df) == 0:
