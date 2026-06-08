@@ -219,17 +219,27 @@ def predict_with_model(df: pd.DataFrame, text_column: str, model_name: str,
     
     print(f"Generating predictions for {len(df)} rows...")
     
+    #def predict_row(text):
+    #    try:
+    #        preds = classifier(str(text), truncation=True, max_length=max_length)[0]
+    #        top_emotions = [p['label'] for p in preds if p['score'] > threshold]
+    #        if not top_emotions:
+    #            top_emotions = [preds[0]['label']]
+    #        return ", ".join(top_emotions)
+    #    except Exception as e:
+    #        print(f"Error: {e}")
+    #        return "error"
+
+    #Change to binary output
     def predict_row(text):
         try:
             preds = classifier(str(text), truncation=True, max_length=max_length)[0]
-            top_emotions = [p['label'] for p in preds if p['score'] > threshold]
-            if not top_emotions:
-                top_emotions = [preds[0]['label']]
-            return ", ".join(top_emotions)
+            binary = {p['label']: 1 if p['score'] > threshold else 0 for p in preds}
+            return binary
         except Exception as e:
             print(f"Error: {e}")
-            return "error"
-    
+            return {}
+
     try:
         from tqdm import tqdm
         tqdm.pandas(desc=f"Predicting with {output_column}")
