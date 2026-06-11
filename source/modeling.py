@@ -406,3 +406,90 @@ def create_model_comparison_df(df: pd.DataFrame, emotion_cols: List[str],
     comparison_df = comparison_df[column_order]
     
     return comparison_df
+
+
+# to trasform the data into the necessary format for the fine tunning of the model
+# trasnforming the text into vectors and the labels into binary format for the multi-label classification task
+class GoEmotionsDataset(Dataset):
+    def __init__(self, texts, labels, tokenizer, max_length=500):
+        self.texts = texts
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+    
+    def __len__(self):
+        return len(self.texts)
+    
+    def __getitem__(self, idx):
+        text = str(self.texts[idx])
+        labels = self.labels[idx]
+        
+        encoding = self.tokenizer(
+            text,
+            truncation=True,
+            padding='max_length',
+            max_length=self.max_length,
+            return_tensors='pt'
+        )
+        
+        return {
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'labels': torch.tensor(labels, dtype=torch.float)
+        }
+    
+
+
+class SimplePredictionDataset(Dataset):
+    def __init__(self, texts, tokenizer, max_length=128):
+        self.texts = texts
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+    
+    def __len__(self):
+        return len(self.texts)
+    
+    def __getitem__(self, idx):
+        text = str(self.texts[idx])
+        encoding = self.tokenizer(
+            text,
+            truncation=True,
+            padding='max_length',
+            max_length=self.max_length,
+            return_tensors='pt'
+        )
+        return {
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten()
+        }
+    
+
+#Extract sentiment scores for each text
+def add_vader_features(df, text_column='01_minimal_preprocessing'):
+    """
+    Add VADER sentiment scores as features to the DataFrame
+    
+    Parameters:
+    - df: DataFrame containing text data
+    - text_column: Name of column containing text to analyze
+    
+    Returns:
+    - df: DataFrame with added sentiment columns
+    """
+    # Apply VADER to each text
+    vader_scores = df[text_column].apply(
+        lambda x: analyzer.polarity_scores(str(x))
+    )
+    
+    # Extract individual sentiment components
+    df['vader_neg'] = vader_scores.apply(lambda x: x['neg'])
+    df['vader_neu'] = vader_scores.apply(lambda x: x['neu'])
+    df['vader_pos'] = vader_scores.apply(lambda x: x['pos'])
+    df['vader_compound'] = vader_scores.apply(lambda x: x['compound'])
+    
+    # Create sentiment polarity label
+    df['vader_sentiment'] = df['vader_compound'].apply(
+        lambda x: 'positive' if x >= 0.05 else ('negative' if x <= -0.05 else 'neutral')
+    )
+    
+    return df
