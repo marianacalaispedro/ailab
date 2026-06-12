@@ -197,11 +197,11 @@ def predict_with_model(df: pd.DataFrame, text_column: str, model_name: str,
     token = os.getenv('HUGGINGFACE_TOKEN')
     
     if token:
-        print("✅ Using authentication token")
+        print("Using authentication token")
         # Login first
         login(token=token)
     else:
-        print("⚠️ No token found")
+        print("No token found")
     
     df_result = df.copy()
     
