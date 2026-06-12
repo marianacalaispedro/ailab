@@ -8,3 +8,10 @@ node_modules/
 _pycache_/
 *.log
 *.tmp
+*.safetensors
+*.pt
+*.bin
+checkpoint-*/
+notebooks/results/
+notebooks/fine_tuned_goemotions/
+EOF
