@@ -5,8 +5,10 @@ from sklearn.metrics import f1_score, precision_score, recall_score, hamming_los
 import matplotlib.pyplot as plt
 
 
+
 def add_vader_features(df, text_column='01_minimal_preprocessing'):
     """Add VADER sentiment scores as features"""
+    analyzer = SentimentIntensityAnalyzer()
     vader_scores = df[text_column].apply(lambda x: analyzer.polarity_scores(str(x)))
     
     df['vader_neg'] = vader_scores.apply(lambda x: x['neg'])
@@ -17,6 +19,7 @@ def add_vader_features(df, text_column='01_minimal_preprocessing'):
         lambda x: 'positive' if x >= 0.05 else ('negative' if x <= -0.05 else 'neutral')
     )
     return df
+
 
 def evaluate_predictions(df, pred_col, emotion_cols, model_name="Model"):
     """Calculate multi-label classification metrics"""
@@ -30,6 +33,7 @@ def evaluate_predictions(df, pred_col, emotion_cols, model_name="Model"):
     metrics = {
         'micro_f1': f1_score(true_matrix, pred_matrix, average='micro', zero_division=0),
         'macro_f1': f1_score(true_matrix, pred_matrix, average='macro', zero_division=0),
+        'weighted_f1': f1_score(true_matrix, pred_matrix, average='weighted', zero_division=0),
         'samples_f1': f1_score(true_matrix, pred_matrix, average='samples', zero_division=0),
         'hamming_loss': hamming_loss(true_matrix, pred_matrix),
         'exact_match_ratio': np.all(true_matrix == pred_matrix, axis=1).mean()
